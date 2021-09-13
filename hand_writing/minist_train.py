@@ -27,3 +27,66 @@ test_loader = torch.utils.data.DataLoader(torchvision.datasets.MNIST('mnist_data
                                                                              (0.1307,), (0.3081,))
                                                                      ])),
                                           batch_size=batch_size, shuffle=False)
+
+x, y = next(iter(train_loader))
+print(x.shape, y.shape)
+plot_image(x, y, 'image sample')
+
+class Net(nn.Module):
+
+    def __init__(self):
+        super(Net, self).__init__()
+        self.fc1 = nn.Linear(28*28, 256)
+        self.fc2 = nn.Linear(256, 64)
+        self.fc3 = nn.Linear(64, 10)
+
+    def forward(self, x):
+
+        x = F.relu(self.fc1(x))
+        x = F.relu((self.fc2(x)))
+        x = self.fc3(x)
+
+        return x
+
+net = Net()
+
+opt = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+
+train_loss = []
+
+for epoch in range(3):
+
+    for batch_id, (x, y) in enumerate(train_loader):
+        # print(x.shape, y)
+        x = x.view(x.size(0), 28*28)
+        out = net(x)
+        y_onehot = one_hot(y)
+
+        loss = F.mse_loss(out, y_onehot)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+
+        train_loss.append(loss.item())
+
+        if batch_id % 10 == 0:
+            print(epoch, batch_id, loss.item())
+
+plot_curve(train_loss)
+total_correct = 0
+for (x, y) in test_loader:
+    x = x.view(x.size(0), 28*28)
+    out = net(x)
+    pred = out.argmax(dim=1)
+    correct = pred.eq(y).sum().float().item()
+    total_correct += correct
+
+total_num = len(test_loader.dataset)
+acc = total_correct/total_num
+print("acc: {}".format(acc))
+
+x, y = next(iter(test_loader))
+out = net(x.view(x.size(0), 28*28))
+pred = out.argmax(dim=1)
+plot_image(x, pred, 'test')
+
